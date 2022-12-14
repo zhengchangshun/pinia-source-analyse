@@ -29,7 +29,7 @@ export function storeToRefs<SS extends StoreGeneric>(
     // @ts-expect-error: toRefs include methods and others
     return toRefs(store)
   } else {
-    store = toRaw(store)
+    store = toRaw(store)  // 获取 store 的原始对象
 
     const refs = {} as ToRefs<
       StoreState<SS> &
@@ -38,6 +38,7 @@ export function storeToRefs<SS extends StoreGeneric>(
     >
     for (const key in store) {
       const value = store[key]
+      // 如果是 ref、reactive 对象，基于响应式对象上的一个属性，创建一个对应的 ref
       if (isRef(value) || isReactive(value)) {
         // @ts-expect-error: the key is state or getter
         refs[key] =
