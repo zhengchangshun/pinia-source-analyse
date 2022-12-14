@@ -53,6 +53,7 @@ import { addSubscription, triggerSubscriptions, noop } from './subscriptions'
 
 type _ArrayType<AT> = AT extends Array<infer T> ? T : never
 
+// 递归合并
 function mergeReactiveObjects<
   T extends Record<any, unknown> | Map<unknown, unknown> | Set<unknown>
 >(target: T, patchToApply: _DeepPartial<T>): T {
@@ -67,9 +68,11 @@ function mergeReactiveObjects<
 
   // no need to go through symbols because they cannot be serialized anyway
   for (const key in patchToApply) {
+    // 非原型链上的属性
     if (!patchToApply.hasOwnProperty(key)) continue
     const subPatch = patchToApply[key]
     const targetValue = target[key]
+    // 如果 target 存在 patchToApply 的属性，且都是纯对象，则递归处理
     if (
       isPlainObject(targetValue) &&
       isPlainObject(subPatch) &&
@@ -83,6 +86,7 @@ function mergeReactiveObjects<
       target[key] = mergeReactiveObjects(targetValue, subPatch)
     } else {
       // @ts-expect-error: subPatch is a valid value
+      // 简单类型的数据，直接覆盖
       target[key] = subPatch
     }
   }
@@ -316,22 +320,33 @@ function createSetupStore<
     if (__DEV__) {
       debuggerEvents = []
     }
+
+    // 函数的形式
+    /**
+     useCounter1.$patch((state) => {
+      state.counter = 2;
+    });
+    */
     if (typeof partialStateOrMutator === 'function') {
+      // 注入 store 参数，执行更新方法
       partialStateOrMutator(pinia.state.value[$id] as UnwrapRef<S>)
       subscriptionMutation = {
-        type: MutationType.patchFunction,
-        storeId: $id,
+        type: MutationType.patchFunction,  //  标识：通过 patch 的 function 形式更新 state 
+        storeId: $id,  // 当前 store 的 id
         events: debuggerEvents as DebuggerEvent[],
       }
     } else {
+      // 对象的形式：useCounter1.$patch({ counter: 2 });
+      // 合并当前数据和 state 中的数据
       mergeReactiveObjects(pinia.state.value[$id], partialStateOrMutator)
       subscriptionMutation = {
-        type: MutationType.patchObject,
-        payload: partialStateOrMutator,
-        storeId: $id,
+        type: MutationType.patchObject,  //  标识：通过 patch 的 function 形式更新 state 
+        payload: partialStateOrMutator,  // 更新的数据
+        storeId: $id, // 当前 store 的 id
         events: debuggerEvents as DebuggerEvent[],
       }
     }
+
     const myListenerId = (activeListener = Symbol())
     nextTick().then(() => {
       if (activeListener === myListenerId) {
@@ -340,6 +355,8 @@ function createSetupStore<
     })
     isSyncListening = true
     // because we paused the watcher, we need to manually call the subscriptions
+
+    // 触发 $subscribe 中设置回调，并将 subscriptionMutation, store 作为参数传入
     triggerSubscriptions(
       subscriptions,
       subscriptionMutation,
@@ -445,18 +462,22 @@ function createSetupStore<
     $onAction: addSubscription.bind(null, actionSubscriptions), // 事件订阅添加到 actionSubscriptions 中
     $patch, // 更改 state 的方法
     $reset, // 重置
-    // 状态发生变化时的回调
-    $subscribe(callback, options = {}) {
+    // 状态发生变化时的回调, options 为 watch 方法的配置
+    $subscribe (callback, options = {}) {
+      // 将订阅的回调添加到 subscriptions 中， $patch 方法中会使用
       const removeSubscription = addSubscription(
         subscriptions,
         callback,
         options.detached,
-        () => stopWatcher()
+        () => stopWatcher()  // 移除监听时执行, 移除 watch 监听
       )
+      // 监听当前的 store 的内容,变化时执行 callback。 watch 方法返回 watchStopHandel，执行后会停止 watch 监听
       const stopWatcher = scope.run(() =>
         watch(
           () => pinia.state.value[$id] as UnwrapRef<S>,
           (state) => {
+           // 在不使用$patch的情况下，则两个参数都为true，callback一定会执行
+           // $patch 时都会 false ，回调通过  triggerSubscriptions 触发 
             if (options.flush === 'sync' ? isSyncListening : isListening) {
               callback(
                 {
@@ -468,6 +489,7 @@ function createSetupStore<
               )
             }
           },
+          //  watch 参数，默认 {deep: true} 深度监听
           assign({}, $subscribeOptions, options)
         )
       )!

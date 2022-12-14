@@ -5,6 +5,7 @@ import type { Store, StoreGeneric } from './types'
 // https://github.com/microsoft/rushstack/issues/2090
 // https://github.com/microsoft/rushstack/issues/1709
 
+// TS 声明
 // @ts-ignore: works on Vue 2, fails in Vue 3
 declare module 'vue/types/vue' {
   interface Vue {

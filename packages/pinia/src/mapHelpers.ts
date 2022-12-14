@@ -8,6 +8,15 @@ import type {
 } from './types'
 
 /**
+ * 当前文件为 mapXXX 方法：
+   1、定义了 mapStores、mapStores、mapGetters、mapActions
+   2、抹平多种格式，数组、对象、方法等；
+   3、将 mapXXX 的结果返回给组件实例
+*/
+
+
+
+/**
  * Interface to allow customizing map helpers. Extend this interface with the
  * following properties:
  *

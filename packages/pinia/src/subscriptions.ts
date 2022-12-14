@@ -3,6 +3,7 @@ import { _Method } from './types'
 
 export const noop = () => {}
 
+// 发布订阅
 export function addSubscription<T extends _Method>(
   subscriptions: T[],
   callback: T,
@@ -19,6 +20,7 @@ export function addSubscription<T extends _Method>(
     }
   }
 
+  // detached 如果是 false，则当前 scope 销毁时，会清理掉监听
   if (!detached && getCurrentScope()) {
     onScopeDispose(removeSubscription)
   }
